@@ -1,0 +1,64 @@
+---
+title: "A4_Task1"
+author: "Teague Tran"
+date: "3/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#For Task 1, use hierarchical clustering by complete linkage to create a dendrogram showing multivariate clustering for water chemistry by site, saved as lastname_firstname_a4_task1.html. 
+
+#To perform hierarchical clustering by site, you’ll want to make a data frame that has a single summary row per site (e.g. based on means from all observations at that site), then calculate the euclidean distance before performing complete linkage agglomerative hierarchical clustering. 
+#set up 
+library(tidyverse)
+library(here)
+library(janitor)
+
+# Packages for cluster analysis:
+library(NbClust)
+library(cluster)
+library(factoextra)
+library(dendextend)
+library(ggdendro)
+
+#read .csv in, clean names, change -999 to NA and drop NAs
+stream_chem <- read.csv(here("data", "sbc_lter_registered_stream_chemistry.csv")) %>% 
+  clean_names() 
+
+stream_chem[stream_chem == -999] <- NA
+
+
+
+stream_chem <- stream_chem %>% 
+  group_by(site_code) %>% 
+  summarize(across(3:11, mean, na.rm = TRUE)) %>% 
+  drop_na()
+```
+```{r, echo = FALSE}
+#scale the dataset 
+
+stream_scaled <- stream_chem %>% 
+  select(2:10) %>% 
+  scale
+
+
+#set row name to site names
+rownames(stream_scaled) <- stream_chem$site_code
+
+```
+
+```{r}
+#compute Euclidian distances 
+
+stream_eucdist <- dist(stream_scaled, method = "euclidean")
+
+#use perform complete linkage agglomerative hierarchical clustering
+stream_hc_complete <- hclust(stream_eucdist, method = "complete")
+
+plot(stream_hc_complete, cex = 0.6, hang = -1) 
+```
+
