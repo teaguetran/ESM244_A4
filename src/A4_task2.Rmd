@@ -1,0 +1,45 @@
+---
+title: "A4_task2"
+author: "Teague Tran"
+date: "3/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+#set up
+library(tidyverse)
+library(here)
+library(boot)
+library(gt)
+library(patchwork)
+library(broom)
+library(nlstools)
+
+#add in csv and change column names to name of first row 
+#units = million tons
+fish_catch <- read_csv(here("data", "fish_catch.csv")) %>% 
+  drop_na() %>% 
+  row_to_names(row_number = 1) %>% 
+  clean_names()
+```
+
+```{r}
+# visualize the data 
+
+ggplot( data = fish_catch, aes( x = year, y = total_fish_production)) + 
+  geom_point() + 
+  theme_minimal() + 
+  labs(x = "Year", y = "Total Fish Production")
+
+#look at log transformed data: 
+
+ggplot( data = fish_catch, aes( x = year, y = log(as.numeric(total_fish_production)))) + 
+  geom_point() + 
+  theme_minimal() + 
+  labs(x = "Year", y = "ln(Fish Production) (million tons)")
+```
+ 
+ 

@@ -1,0 +1,37 @@
+---
+title: "A4_task3"
+author: "Teague Tran"
+date: "3/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(here)
+library(boot)
+library(gt)
+library(patchwork)
+library(broom)
+library(nlstools)
+library(readxl)
+
+ucsb_survey <- read_xlsx(here("data", "ucsb_survey.xlsx")) 
+
+
+```
+
+```{r}
+proportion_fun <- function (x,i) {proportions(x[i])}
+
+#get vector of column
+survey_nc <- ucsb_survey$exp_cond
+
+boot_100 <- boot(survey_nc,
+                 statistic = proportion_fun,
+                 R = 100)
+```
+
