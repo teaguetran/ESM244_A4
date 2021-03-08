@@ -1,14 +1,16 @@
 ---
-title: "A4_task2"
+title: "Parameter Estmination: Wild Fish Catch"
 author: "Teague Tran"
 date: "3/5/2021"
-output: html_document
+output: 
+  html_document:
+    code_folding: hide
 ---
 
-```{r setup, include=FALSE}
+```{r setup, message = FALSE, warning = FALSE, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-```{r}
+```{r, message = FALSE, warning = FALSE}
 #set up
 library(tidyverse)
 library(here)
@@ -17,6 +19,7 @@ library(gt)
 library(patchwork)
 library(broom)
 library(nlstools)
+library(janitor)
 
 #add in csv and change column names to name of first row 
 #units = million tons
@@ -24,22 +27,85 @@ fish_catch <- read_csv(here("data", "fish_catch.csv")) %>%
   drop_na() %>% 
   row_to_names(row_number = 1) %>% 
   clean_names()
+#change year to have 1950 start at 0
+fish_catch <- fish_catch %>% 
+  mutate(year_num = as.numeric(year)) %>% 
+  mutate(wild_catch = as.numeric(wild_catch, replace = TRUE)) %>% 
+  mutate(year_new = year_num - min(year_num)) %>% 
+  select(wild_catch, year_new)
 ```
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 # visualize the data 
-
-ggplot( data = fish_catch, aes( x = year, y = total_fish_production)) + 
+ggplot( data = fish_catch, aes( x = year_new, y = wild_catch)) + 
   geom_point() + 
   theme_minimal() + 
-  labs(x = "Year", y = "Total Fish Production")
-
+  labs(x = "Year", y = "Wild fish catch (million tons)") 
 #look at log transformed data: 
 
-ggplot( data = fish_catch, aes( x = year, y = log(as.numeric(total_fish_production)))) + 
+ggplot( data = fish_catch, aes( x = year_new, y = log(as.numeric(wild_catch)))) + 
   geom_point() + 
   theme_minimal() + 
-  labs(x = "Year", y = "ln(Fish Production) (million tons)")
+  labs(x = "Year", y = "ln(wild fish catch) (million tons)") 
+#K looks to be at around 90 million tons
 ```
- 
- 
+
+
+The log-transformed graph shows evidence of a logistic growth curve. Therefore, we will be using the equation below for the model. 
+
+$P(t)=\frac{K}{1+Ae^{-kt}}$, where
+
+- $K$ is the carrying capacity
+- $A$ is $\frac{K-P_0}{P_0}$
+- $k$ is the growth rate constant; equivalent to $r$
+
+After further analysis, the following are the initial values for the parameters in the model :
+
+- $K$ = 90
+- $A$ = 4.23
+- $k$ = .0354
+
+```{r, message = FALSE, warning = FALSE}
+#try to find growth rate constant (k) during exponential growth phase
+fish_catch_exp <- fish_catch  %>% 
+  filter(year_new <= 40) %>% 
+  mutate(ln_prod = log(as.numeric(wild_catch)))
+
+#find k estimate using slope of linear equation
+lm_k <- lm(ln_prod ~ year_new, data = fish_catch_exp)
+
+#find A; K at approximately 95 million
+#A = (90-17.2)/17.2 = 4.23
+
+#perform nls 
+df_nls <- nls(as.numeric(wild_catch) ~ K/(1 + A*exp(-r*year_new)),
+              data = fish_catch,
+              start = list(K = 90, A = 4.23, r = .03255),
+              trace = FALSE)
+
+```
+
+
+Our model with estimated parameters is:
+$$P(t) = \frac{90}{1+4.23e^{-.0354t}}$$
+```{r, message = FALSE, warning = FALSE}
+# visualize model over original observed values
+p_predict <- predict(df_nls)
+
+# Bind predictions to original data frame: 
+fish_catch_complete <- data.frame(fish_catch, p_predict)
+
+#plot both prediction and original data together
+ggplot(data = fish_catch_complete, aes(x = year_new, y = wild_catch, colour = "Observed")) +
+  geom_point(aes(shape = "Observed fish catch"), color = "orange") + 
+  geom_line(aes(x = year_new, y = p_predict, linetype = "Model Prediction"), color = "black",  size = 1) +
+  theme_minimal() +
+  labs(y = "Wild fish count (million tons)", x = "Year(s) from 1950", title = "Observed Fish Catch vs Fish Catch Calculated by a \nLogicstic Growth Model", shape = "", linetype = "")
+
+# find confidence intervals
+df_ci <- confint2(df_nls)
+```
+
+## Citation:
+
+ Global wild fish catch and aquaculture production, compiled by Earth Policy Institute with 1950-2010 from U.N. Food and Agriculture Organization (FAO), Global Capture Production and Global Aquaculture Production, electronic databases, at www.fao.org/fishery/topic/16140/en.

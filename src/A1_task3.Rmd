@@ -1,15 +1,17 @@
 ---
-title: "A4_task3"
+title: "Bootstrapping UCSB Campus Climate Data"
 author: "Teague Tran"
 date: "3/4/2021"
-output: html_document
+output: 
+  html_document:
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r, include = FALSE}
 library(tidyverse)
 library(here)
 library(boot)
@@ -21,17 +23,30 @@ library(readxl)
 
 ucsb_survey <- read_xlsx(here("data", "ucsb_survey.xlsx")) 
 
-
 ```
 
-```{r}
-proportion_fun <- function (x,i) {proportions(x[i])}
+```{r, message= FALSE, warning=FALSE}
+#proportion function: mean of yesses (1) and no's (0) = proportion
+#mean of binary values (1s and 0s = proportion)
+proportion_fun <- function (x,i) {mean(x[i])}
 
 #get vector of column
 survey_nc <- ucsb_survey$exp_cond
 
-boot_100 <- boot(survey_nc,
+boot_10k <- boot(survey_nc,
                  statistic = proportion_fun,
-                 R = 100)
+                 R = 10000)
+#make output into data frame
+boot_10k_df <- data.frame(bs_proportion = boot_10k$t)
+
+#make a histogram plot to visualize the data
+
+ggplot(data = boot_10k_df, aes(x= bs_proportion)) +
+  geom_histogram()
+
+#find confidence interval
+bootstrap_confidence_interval <- boot.ci(boot_10k, conf = .95)
 ```
+
+The proportion of nonbinary students at UCSB that have experienced exclusionary, offensive, hostile or intimidating conduct is .61 (n = 36), with a bootstrapped confidence interval of approximately [.45, .77] (n = 10,000 bootstrap samples).
 
